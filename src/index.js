@@ -1,9 +1,26 @@
 const fs = require('fs')
 const json2xls = require('json2xls')
-const graphsApi = require('./graphsApi')
+const graphs = require('./graphs')
+const storage = require('./storage')
 
-const initialDate = new Date(2017, 09, 1, 0, 0, 0, 0)
+const initialDate = new Date(2017, 9, 1, 0, 0, 0, 0)
+const actualDate = new Date()
 
+setImmediate(async () => {
+  const data = storage.load()
+  const lastDate = data[0] ? data[0].date : initialDate
+  const timeDiff = Math.abs(actualDate.getTime() - lastDate.getTime())
+  const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24))
+
+  console.log(`${diffDays} available updates`)
+
+
+
+})
+
+/*
+const data = storage.load()
+console.log(data)
 setImmediate(async () => {
   let date = new Date()
   const lines = []
@@ -39,4 +56,4 @@ setImmediate(async () => {
   console.log(lines)
   const xls = json2xls(lines)
   fs.writeFileSync('data.xls', xls, 'binary')
-})
+}) */

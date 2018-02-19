@@ -12,5 +12,16 @@ instance.interceptors.response
 module.exports = {
   async getChartData (startDate, endDate) {
     return (await instance.get(`global/marketcap-total/${startDate.getTime()}/${endDate.getTime()}/`)).data
+  },
+  async getDailyChartData (startDate, endDate) {
+    const lines = []
+    const promises = []
+    while (startDate <= endDate) {
+      promises.push(async () => {
+        lines.push(await this.getChartData(startDate, endDate))
+      })
+      startDate = new Date(new Date().getTime() + 86400000)
+    }
+    await Promise.all(promises)
   }
 }
