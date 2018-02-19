@@ -1,0 +1,12 @@
+# IDEA
+.idea
+
+# NPM
+node_modules
+package-lock.json
+
+# PROJECT
+.env
+
+# DATA
+data.xls
