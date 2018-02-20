@@ -3,57 +3,46 @@ const json2xls = require('json2xls')
 const graphs = require('./graphs')
 const storage = require('./storage')
 
-const initialDate = new Date(2017, 9, 1, 0, 0, 0, 0)
-const actualDate = new Date()
-
 setImmediate(async () => {
+  console.log('Fetching updates from coinmarketcap...')
   const data = storage.load()
-  const lastDate = data[0] ? data[0].date : initialDate
-  const timeDiff = Math.abs(actualDate.getTime() - lastDate.getTime())
-  const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24))
+  const lastDate = data.length ? data[data.length - 1].date : new Date(2017, 9, 1, 0, 0, 0, 0)
+  const updates = data.length
 
-  console.log(`${diffDays} available updates`)
-
-
-
-})
-
-/*
-const data = storage.load()
-console.log(data)
-setImmediate(async () => {
-  let date = new Date()
-  const lines = []
-  while (date.getTime() > initialDate.getTime()) {
-    const yesterday = new Date(date.getTime() - 86400000)
-    const chartData = await graphsApi.getChartData(yesterday, date)
-    const marketcapByAvailableSupply = chartData['market_cap_by_available_supply']
-    const volumeUsd = chartData['volume_usd']
-    const infoByDate = []
-
-    marketcapByAvailableSupply.forEach(([ timestamp, marketcap ]) => {
-      infoByDate.push({ timestamp, marketcap })
-    })
-
-    volumeUsd.forEach(([ timestamp, volume ]) => {
-      const info = infoByDate.find(info => info.timestamp === timestamp)
-      if (info) {
-        info.volumeUsd = volume
+  let firstTime = lastDate.getTime()
+  while (true) {
+    const chartData = await graphs.getChartData(firstTime, firstTime + 86400000)
+    if (!chartData['volume_usd'].length) {
+      break
+    }
+    for (let i = 0; i < chartData['volume_usd'].length; i++) {
+      const [id, volume] = chartData['volume_usd'][i]
+      const [, marketCap] = chartData['market_cap_by_available_supply'][i]
+      if ((data.length && data[data.length - 1].id !== id) || (!data.length && new Date(id).getDay() >= lastDate.getDay())) {
+        data.push({ id, volume, marketCap, date: new Date(id) })
       }
-    })
-
-    infoByDate.forEach(info => lines.push({
-      'Date': new Date(info.timestamp),
-      'Time': info.timestamp,
-      'Market cap': info.marketcap,
-      'Volume USD': info.volumeUsd
-    }))
-
-    date = yesterday
+    }
+    firstTime = data[data.length - 1].id + 300000
   }
 
-  lines.sort((l1, l2) => l1.timestamp > l2.timestamp)
-  console.log(lines)
-  const xls = json2xls(lines)
-  fs.writeFileSync('data.xls', xls, 'binary')
-}) */
+  const installedUpdates = data.length - updates
+  if (installedUpdates) {
+    console.log(installedUpdates + ' new updates addeds')
+    storage.save(data)
+  } else {
+    console.log('No new updates')
+  }
+
+  const existXls = fs.existsSync('data.xls')
+  if (installedUpdates > 0 || !existXls) {
+    const xls = json2xls(data.map(update => ({
+      'Timestamp': update.id,
+      'Volume USD': update.volume,
+      'Market Cap': update.marketCap,
+      'Date': update.date
+    })))
+  
+    fs.writeFileSync('data.xls', xls, 'binary')
+    console.log(existXls ? 'Content of data.xls was overwritten with new updates' : 'Created file data.xls with content of updates')
+  }
+})
